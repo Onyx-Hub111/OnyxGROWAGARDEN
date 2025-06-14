@@ -55,7 +55,7 @@ mainSection:AddToggle("Auto Buy Selected", false, function(state)
                     BuySeedStock:FireServer(fruit)
                     task.wait(0.1)
                 end
-                task.wait(0.5)
+                task.wait(0.2)
             end
         end)
     end
@@ -95,14 +95,14 @@ end)
 sellSection:AddButton("Collect All", function()
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local hrp = char:WaitForChild("HumanoidRootPart")
-    local range = 90
+    local range = 60
 
     for _, prompt in ipairs(workspace:GetDescendants()) do
         if prompt:IsA("ProximityPrompt") and prompt.Enabled then
             local part = prompt.Parent:IsA("Model") and prompt.Parent:FindFirstChild("HumanoidRootPart") or prompt.Parent
             if part and (part.Position - hrp.Position).Magnitude <= range then
                 fireproximityprompt(prompt)
-                task.wait()
+                task.wait(0.1)
             end
         end
     end

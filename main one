@@ -1,0 +1,213 @@
+-- UI Library
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/cat"))()
+local Window = Library:CreateWindow("Onyx Hub : Grow a Garden", Vector2.new(492, 598), Enum.KeyCode.RightControl)
+
+-- Tabs
+local MainTab = Window:CreateTab("Main")
+
+-- Services
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local BuySeedStock = ReplicatedStorage.GameEvents:WaitForChild("BuySeedStock")
+local Sell_Inventory = ReplicatedStorage.GameEvents:WaitForChild("Sell_Inventory")
+local Notification = ReplicatedStorage.GameEvents:WaitForChild("Notification")
+local HoneyMachineService_RE = ReplicatedStorage.GameEvents:WaitForChild("HoneyMachineService_RE")
+local BuyPetEgg = ReplicatedStorage.GameEvents:WaitForChild("BuyPetEgg")
+
+-- Fruit list (arranged by assumed lowest to highest price)
+local fruitList = {
+    "Carrot", "Strawberry", "Blueberry", "Orange Tulip", "Tomato", "Corn", "Daffodil",
+    "Watermelon", "Pumpkin", "Apple", "Bamboo", "Coconut", "Cactus", "Dragon Fruit",
+    "Mango", "Grape", "Mushroom", "Pepper", "Cacao", "Beanstalk", "Ember Lily"
+}
+
+-- MAIN TAB
+
+-- Auto Buy Seeds Section
+local mainSection = MainTab:CreateSector("Auto Buy Seeds", "left")
+local selectedFruits = {}
+
+mainSection:AddDropdown("Select Fruits", fruitList, nil, true, function(selected)
+    selectedFruits = selected
+end)
+
+local autoBuy = false
+mainSection:AddToggle("Auto Buy Selected", false, function(state)
+    autoBuy = state
+    if autoBuy then
+        task.spawn(function()
+            while autoBuy do
+                for _, fruit in ipairs(selectedFruits) do
+                    BuySeedStock:FireServer(fruit)
+                    task.wait(0.1)
+                end
+                task.wait(0.1)
+            end
+        end)
+    end
+end)
+
+-- GUI TOGGLES
+local guiSection = MainTab:CreateSector("GUI", "left")
+
+guiSection:AddToggle("Shop", false, function(state)
+    LocalPlayer.PlayerGui.Seed_Shop.Enabled = state
+end)
+
+guiSection:AddToggle("Gear Shop", false, function(state)
+    LocalPlayer.PlayerGui.Gear_Shop.Enabled = state
+end)
+
+guiSection:AddToggle("Cosmetic Shop", false, function(state)
+    LocalPlayer.PlayerGui.CosmeticShop_UI.Enabled = state
+end)
+
+-- SELL & COLLECT SECTION
+local sellSection = MainTab:CreateSector("Sell & Collect", "right")
+
+sellSection:AddButton("Sell All", function()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    local originalCFrame = hrp.CFrame
+    local sellCFrame = CFrame.new(64.9806061, 2.99999881, 1.34618723)
+
+    hrp.CFrame = sellCFrame
+    task.wait(0.3)
+    Sell_Inventory:FireServer()
+    task.wait(0.3)
+    hrp.CFrame = originalCFrame
+end)
+
+sellSection:AddButton("Collect All", function()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+
+    local originalCFrame = hrp.CFrame
+    local originPos = hrp.Position
+
+    local maxRange = 80 -- max distance to consider
+
+    for _, prompt in ipairs(workspace:GetDescendants()) do
+        if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+            local promptPart = prompt.Parent:IsA("Model") and prompt.Parent:FindFirstChild("HumanoidRootPart") or prompt.Parent
+
+            if promptPart and promptPart:IsA("BasePart") then
+                local dist = (promptPart.Position - originPos).Magnitude
+                if dist <= maxRange then
+                    -- Teleport to prompt location
+                    hrp.CFrame = promptPart.CFrame + Vector3.new(0, 3, 0) -- small offset above
+
+                    task.wait(0.05) -- wait a moment to simulate being in range
+
+                    -- Fire the prompt
+                    fireproximityprompt(prompt)
+
+                    task.wait(0.05) -- small wait before next
+                end
+            end
+        end
+    end
+
+    -- Return to original position
+    hrp.CFrame = originalCFrame
+end)
+
+
+-- HONEY EVENT SECTION
+local honeySection = MainTab:CreateSector("Honey Event", "left")
+
+local tradePollinated = false
+honeySection:AddToggle("Trade All Pollinated Fruit", false, function(state)
+    tradePollinated = state
+    if tradePollinated then
+        local backpack = LocalPlayer:WaitForChild("Backpack")
+        for _, item in ipairs(backpack:GetChildren()) do
+            if item:IsA("Tool") and item.Name:lower():find("pollinate") then
+                LocalPlayer.Character.Humanoid:EquipTool(item)
+                task.wait(0.3)
+                HoneyMachineService_RE:FireServer("MachineInteract")
+                task.wait(0.2)
+            end
+        end
+    end
+end)
+
+-- FAKE STATS SECTION
+local statsSection = MainTab:CreateSector("Fake Stats", "right")
+
+local sheckleInput = ""
+statsSection:AddTextbox("Set Sheckle", nil, function(text)
+    sheckleInput = text
+end)
+
+statsSection:AddButton("Set Sheckle", function()
+    local label = LocalPlayer.PlayerGui.Sheckles_UI.TextLabel
+    if tonumber(sheckleInput) then
+        label.Text = string.format("%s¢", tostring(sheckleInput):reverse():gsub("%d%d%d", "%1,"):reverse():gsub("^,", ""))
+    else
+        label.Text = sheckleInput .. "¢"
+    end
+end)
+
+local notifInput = ""
+statsSection:AddTextbox("Fake Notification", nil, function(text)
+    notifInput = text
+end)
+
+statsSection:AddButton("Send Fake Notification", function()
+    firesignal(Notification.OnClientEvent, notifInput)
+end)
+
+-- AUTO BUY EGG SECTION
+local eggList = {
+    "Bug Egg",
+    "Mythic Egg",
+    "Legendary Egg"
+}
+
+local autoEggSection = MainTab:CreateSector("Auto Buy Egg", "left")
+local selectedEggs = {}
+
+autoEggSection:AddDropdown("Select Eggs", eggList, nil, true, function(selected)
+    selectedEggs = selected
+end)
+
+local autoBuyEgg = false
+autoEggSection:AddToggle("Auto Buy Selected Eggs", false, function(state)
+    autoBuyEgg = state
+    if autoBuyEgg then
+        task.spawn(function()
+            local eggLocationsFolder = workspace.NPCS and workspace.NPCS:FindFirstChild("Pet Stand") and workspace.NPCS["Pet Stand"]:FindFirstChild("EggLocations")
+
+            if not eggLocationsFolder then
+                warn("EggLocations folder not found!")
+                return
+            end
+
+            -- Map selected egg names to their indices
+            local eggIndices = {}
+            for _, selectedEgg in ipairs(selectedEggs) do
+                for index, eggName in ipairs(eggList) do
+                    if eggName == selectedEgg then
+                        table.insert(eggIndices, index)
+                        break
+                    end
+                end
+            end
+
+            for _, eggIndex in ipairs(eggIndices) do
+                -- Check if egg model exists in EggLocations folder
+                local eggModelName = eggList[eggIndex]
+                if eggLocationsFolder:FindFirstChild(eggModelName) then
+                    BuyPetEgg:FireServer(eggIndex)
+                    task.wait(0.5)  -- small delay between fires
+                end
+            end
+        end)
+    end
+end)
+
+-- Default Notification on load
+firesignal(Notification.OnClientEvent, "Thanks for using Onyx Hub!")

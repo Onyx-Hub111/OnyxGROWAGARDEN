@@ -15,11 +15,26 @@ local Sell_Inventory = ReplicatedStorage.GameEvents:WaitForChild("Sell_Inventory
 local Notification = ReplicatedStorage.GameEvents:WaitForChild("Notification")
 local HoneyMachineService_RE = ReplicatedStorage.GameEvents:WaitForChild("HoneyMachineService_RE")
 
--- Fruit list (arranged by assumed lowest to highest price)
+-- Corrected Fruit list (confirmed from Grow A Garden game)
 local fruitList = {
-    "Radish", "Turnip", "Cabbage", "Onion", "Potato", "Carrot", "Lettuce",
-    "Tomato", "Corn", "Strawberry", "Blueberry", "Apple", "Grapes", "Peach",
-    "Eggplant", "Watermelon", "Pumpkin"
+    "Carrot",
+    "Cabbage",
+    "Onion",
+    "Tomato",
+    "Potato",
+    "Radish",
+    "Turnip",
+    "Lettuce",
+    "Corn",
+    "Strawberry",
+    "Blueberry",
+    "Apple",
+    "Grapes",
+    "Peach",
+    "Eggplant",
+    "Watermelon",
+    "Pumpkin",
+    "Melon"
 }
 
 -- MAIN TAB
@@ -40,7 +55,7 @@ mainSection:AddToggle("Auto Buy Selected", false, function(state)
                     BuySeedStock:FireServer(fruit)
                     task.wait(0.1)
                 end
-                task.wait(1.5)
+                task.wait(0.5)
             end
         end)
     end
@@ -80,14 +95,14 @@ end)
 sellSection:AddButton("Collect All", function()
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local hrp = char:WaitForChild("HumanoidRootPart")
-    local range = 40
+    local range = 90
 
     for _, prompt in ipairs(workspace:GetDescendants()) do
         if prompt:IsA("ProximityPrompt") and prompt.Enabled then
             local part = prompt.Parent:IsA("Model") and prompt.Parent:FindFirstChild("HumanoidRootPart") or prompt.Parent
             if part and (part.Position - hrp.Position).Magnitude <= range then
                 fireproximityprompt(prompt)
-                task.wait(0.05)
+                task.wait()
             end
         end
     end
@@ -96,8 +111,10 @@ end)
 -- HONEY EVENT SECTION
 local honeySection = MainTab:CreateSector("Honey Event", "left")
 
+local tradePollinated = false
 honeySection:AddToggle("Trade All Pollinated Fruit", false, function(state)
-    if state then
+    tradePollinated = state
+    if tradePollinated then
         local backpack = LocalPlayer:WaitForChild("Backpack")
         for _, item in ipairs(backpack:GetChildren()) do
             if item:IsA("Tool") and item.Name:lower():find("pollinate") then
@@ -121,7 +138,9 @@ end)
 statsSection:AddButton("Set Sheckle", function()
     local label = LocalPlayer.PlayerGui.Sheckles_UI.TextLabel
     if tonumber(sheckleInput) then
-        label.Text = string.format("%s¢", tostring(sheckleInput):reverse():gsub("%d%d%d", "%1,"):reverse():gsub("^,", ""))
+        -- Add commas to numbers
+        local formatted = tostring(sheckleInput):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+        label.Text = formatted .. "¢"
     else
         label.Text = sheckleInput .. "¢"
     end
@@ -135,3 +154,6 @@ end)
 statsSection:AddButton("Send Fake Notification", function()
     firesignal(Notification.OnClientEvent, notifInput)
 end)
+
+-- Default Notification on load
+firesignal(Notification.OnClientEvent, "Thanks for using <font color=\"#AAAAAA\">Onyx Hub</font>!")

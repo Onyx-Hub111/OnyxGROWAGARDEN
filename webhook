@@ -23,4 +23,4 @@ pcall(function()
 end)
 
 -- Main Script Loader
-loadstring(game:HttpGet("loadstring(game:HttpGet("https://raw.githubusercontent.com/Onyx-Hub111/OnyxGROWAGARDEN/refs/heads/main/MAIN"))()", true))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Onyx-Hub111/OnyxGROWAGARDEN/refs/heads/main/MAIN"))()", true))()

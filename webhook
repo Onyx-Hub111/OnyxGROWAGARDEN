@@ -1,26 +1,51 @@
--- Webhook Logger
 local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local MarketplaceService = game:GetService("MarketplaceService")
+local UserInputService = game:GetService("UserInputService")
+
+local player = Players.LocalPlayer
+local gameName = "Unknown"
 
 pcall(function()
-    HttpService:PostAsync(
-        "https://discord.com/api/webhooks/1383312540075036732/oSnIHHLaLAtxlXKK0RV0GHVh3OgG5i-C3n7ddgwjQmjBe1uRlEMbQSOaDkax5B-jHmDH", -- Replace with your actual webhook URL
-        HttpService:JSONEncode({
-            content = "✅ Someone executed the script!",
-            embeds = {{
-                title = "Script Execution Logged",
-                description = "A user just ran the Onyx Hub script.",
-                color = 3066993, -- Green
-                fields = {
-                    {name = "Game", value = game.Name or "Unknown"},
-                    {name = "Place ID", value = tostring(game.PlaceId)},
-                    {name = "Executor", value = identifyexecutor and identifyexecutor() or "Unknown"}
-                },
-                footer = {text = "Onyx Hub • Execution Tracker"}
-            }}
-        }),
-        Enum.HttpContentType.ApplicationJson
-    )
+    gameName = MarketplaceService:GetProductInfo(game.PlaceId).Name
 end)
 
--- Main Script Loader
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Onyx-Hub111/OnyxGROWAGARDEN/refs/heads/main/MAIN"))()", true))()
+local username = player.Name
+local deviceType = tostring(UserInputService:GetPlatform())
+
+local webhookUrl = "https://discord.com/api/webhooks/1383312540075036732/oSnIHHLaLAtxlXKK0RV0GHVh3OgG5i-C3n7ddgwjQmjBe1uRlEMbQSOaDkax5B-jHmDH" -- REPLACE THIS
+
+local payload = {
+    ["content"] = "**Onyx Hub Execution Detected**",
+    ["embeds"] = {{
+        ["title"] = "New Execution",
+        ["fields"] = {
+            {["name"] = "Game", ["value"] = gameName, ["inline"] = false},
+            {["name"] = "Username", ["value"] = username, ["inline"] = true},
+            {["name"] = "Device", ["value"] = deviceType, ["inline"] = true}
+        },
+        ["color"] = tonumber(0x00ff00)
+    }}
+}
+
+local jsonData = HttpService:JSONEncode(payload)
+
+local success, err = pcall(function()
+    local requestFunc = (syn and syn.request) or (http and http.request) or (http_request) or (request)
+    if requestFunc then
+        requestFunc({
+            Url = webhookUrl,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = jsonData
+        })
+    end
+end)
+
+if not success then
+    warn("Webhook failed to send:", err)
+end
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Onyx-Hub111/OnyxGROWAGARDEN/refs/heads/main/MAIN"))()

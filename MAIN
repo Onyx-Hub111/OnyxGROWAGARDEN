@@ -1,0 +1,137 @@
+-- UI Library
+local Library = loadstring(game:HttpGet("https://raw.githubusercontent.com/bloodball/-back-ups-for-libs/main/cat"))()
+local Window = Library:CreateWindow("Onyx Hub : Grow a Garden", Vector2.new(492, 598), Enum.KeyCode.RightControl)
+
+-- Tabs
+local MainTab = Window:CreateTab("Main")
+
+-- Services
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local BuySeedStock = ReplicatedStorage.GameEvents:WaitForChild("BuySeedStock")
+local Sell_Inventory = ReplicatedStorage.GameEvents:WaitForChild("Sell_Inventory")
+local Notification = ReplicatedStorage.GameEvents:WaitForChild("Notification")
+local HoneyMachineService_RE = ReplicatedStorage.GameEvents:WaitForChild("HoneyMachineService_RE")
+
+-- Fruit list (arranged by assumed lowest to highest price)
+local fruitList = {
+    "Radish", "Turnip", "Cabbage", "Onion", "Potato", "Carrot", "Lettuce",
+    "Tomato", "Corn", "Strawberry", "Blueberry", "Apple", "Grapes", "Peach",
+    "Eggplant", "Watermelon", "Pumpkin"
+}
+
+-- MAIN TAB
+local mainSection = MainTab:CreateSector("Auto Buy Seeds", "left")
+local selectedFruits = {}
+
+mainSection:AddDropdown("Select Fruits", fruitList, nil, true, function(selected)
+    selectedFruits = selected
+end)
+
+local autoBuy = false
+mainSection:AddToggle("Auto Buy Selected", false, function(state)
+    autoBuy = state
+    if autoBuy then
+        task.spawn(function()
+            while autoBuy do
+                for _, fruit in ipairs(selectedFruits) do
+                    BuySeedStock:FireServer(fruit)
+                    task.wait(0.1)
+                end
+                task.wait(1.5)
+            end
+        end)
+    end
+end)
+
+-- GUI TOGGLES
+local guiSection = MainTab:CreateSector("GUI", "left")
+
+guiSection:AddToggle("Shop", false, function(state)
+    LocalPlayer.PlayerGui.Seed_Shop.Enabled = state
+end)
+
+guiSection:AddToggle("Gear Shop", false, function(state)
+    LocalPlayer.PlayerGui.Gear_Shop.Enabled = state
+end)
+
+guiSection:AddToggle("Cosmetic Shop", false, function(state)
+    LocalPlayer.PlayerGui.CosmeticShop_UI.Enabled = state
+end)
+
+-- SELL & COLLECT SECTION
+local sellSection = MainTab:CreateSector("Sell & Collect", "right")
+
+sellSection:AddButton("Sell All", function()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    local originalCFrame = hrp.CFrame
+    local sellCFrame = CFrame.new(64.9806061, 2.99999881, 1.34618723)
+
+    hrp.CFrame = sellCFrame
+    task.wait(0.3)
+    Sell_Inventory:FireServer()
+    task.wait(0.3)
+    hrp.CFrame = originalCFrame
+end)
+
+sellSection:AddButton("Collect All", function()
+    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+    local hrp = char:WaitForChild("HumanoidRootPart")
+    local range = 40
+
+    for _, prompt in ipairs(workspace:GetDescendants()) do
+        if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+            local part = prompt.Parent:IsA("Model") and prompt.Parent:FindFirstChild("HumanoidRootPart") or prompt.Parent
+            if part and (part.Position - hrp.Position).Magnitude <= range then
+                fireproximityprompt(prompt)
+                task.wait(0.05)
+            end
+        end
+    end
+end)
+
+-- HONEY EVENT SECTION
+local honeySection = MainTab:CreateSector("Honey Event", "left")
+
+honeySection:AddToggle("Trade All Pollinated Fruit", false, function(state)
+    if state then
+        local backpack = LocalPlayer:WaitForChild("Backpack")
+        for _, item in ipairs(backpack:GetChildren()) do
+            if item:IsA("Tool") and item.Name:lower():find("pollinate") then
+                LocalPlayer.Character.Humanoid:EquipTool(item)
+                task.wait(0.3)
+                HoneyMachineService_RE:FireServer("MachineInteract")
+                task.wait(0.2)
+            end
+        end
+    end
+end)
+
+-- FAKE STATS SECTION
+local statsSection = MainTab:CreateSector("Fake Stats", "right")
+
+local sheckleInput = ""
+statsSection:AddTextbox("Set Sheckle", nil, function(text)
+    sheckleInput = text
+end)
+
+statsSection:AddButton("Set Sheckle", function()
+    local label = LocalPlayer.PlayerGui.Sheckles_UI.TextLabel
+    if tonumber(sheckleInput) then
+        label.Text = string.format("%s¢", tostring(sheckleInput):reverse():gsub("%d%d%d", "%1,"):reverse():gsub("^,", ""))
+    else
+        label.Text = sheckleInput .. "¢"
+    end
+end)
+
+local notifInput = ""
+statsSection:AddTextbox("Fake Notification", nil, function(text)
+    notifInput = text
+end)
+
+statsSection:AddButton("Send Fake Notification", function()
+    firesignal(Notification.OnClientEvent, notifInput)
+end)

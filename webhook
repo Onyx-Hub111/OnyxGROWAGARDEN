@@ -1,0 +1,26 @@
+-- Webhook Logger
+local HttpService = game:GetService("HttpService")
+
+pcall(function()
+    HttpService:PostAsync(
+        "https://discord.com/api/webhooks/1383312540075036732/oSnIHHLaLAtxlXKK0RV0GHVh3OgG5i-C3n7ddgwjQmjBe1uRlEMbQSOaDkax5B-jHmDH", -- Replace with your actual webhook URL
+        HttpService:JSONEncode({
+            content = "✅ Someone executed the script!",
+            embeds = {{
+                title = "Script Execution Logged",
+                description = "A user just ran the Onyx Hub script.",
+                color = 3066993, -- Green
+                fields = {
+                    {name = "Game", value = game.Name or "Unknown"},
+                    {name = "Place ID", value = tostring(game.PlaceId)},
+                    {name = "Executor", value = identifyexecutor and identifyexecutor() or "Unknown"}
+                },
+                footer = {text = "Onyx Hub • Execution Tracker"}
+            }}
+        }),
+        Enum.HttpContentType.ApplicationJson
+    )
+end)
+
+-- Main Script Loader
+loadstring(game:HttpGet("loadstring(game:HttpGet("https://raw.githubusercontent.com/Onyx-Hub111/OnyxGROWAGARDEN/refs/heads/main/MAIN"))()", true))()

@@ -4,6 +4,7 @@ local Window = Library:CreateWindow("Onyx Hub : Grow a Garden", Vector2.new(492,
 
 -- Tabs
 local MainTab = Window:CreateTab("Main")
+local AutoFarmTab = Window:CreateTab("Auto Farm")
 
 -- Services
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -15,59 +16,81 @@ local Sell_Inventory = ReplicatedStorage.GameEvents:WaitForChild("Sell_Inventory
 local Notification = ReplicatedStorage.GameEvents:WaitForChild("Notification")
 local HoneyMachineService_RE = ReplicatedStorage.GameEvents:WaitForChild("HoneyMachineService_RE")
 local BuyPetEgg = ReplicatedStorage.GameEvents:WaitForChild("BuyPetEgg")
+local BuyGearStock = ReplicatedStorage.GameEvents:WaitForChild("BuyGearStock")
+local Plant_RE = ReplicatedStorage.GameEvents:WaitForChild("Plant_RE")
 
--- Fruit list (arranged by assumed lowest to highest price)
+-- Fruit list (all seeds)
 local fruitList = {
     "Carrot", "Strawberry", "Blueberry", "Orange Tulip", "Tomato", "Corn", "Daffodil",
     "Watermelon", "Pumpkin", "Apple", "Bamboo", "Coconut", "Cactus", "Dragon Fruit",
     "Mango", "Grape", "Mushroom", "Pepper", "Cacao", "Beanstalk", "Ember Lily"
 }
 
--- MAIN TAB
+-- Gear list
+local gearList = {
+    "Watering Can", "Trovel", "Recall Wrench", "Basic Sprinkler", "Advance Sprinkler",
+    "Godly Sprinkler", "Lightning Rod", "Master Sprinkler", "Cleaning Spray", "Friendship Pot"
+}
+
+-- Egg list
+local eggList = {
+    "Bug Egg", "Mythic Egg", "Legendary Egg"
+}
+
+-- Main Tab Setup
 
 -- Auto Buy Seeds Section
-local mainSection = MainTab:CreateSector("Auto Buy Seeds", "left")
-local selectedFruits = {}
+local autoBuySeedsSection = MainTab:CreateSector("Auto Buy Seeds", "left")
+local selectedSeeds = {}
 
-mainSection:AddDropdown("Select Fruits", fruitList, nil, true, function(selected)
-    selectedFruits = selected
+autoBuySeedsSection:AddDropdown("Select Seeds", fruitList, nil, true, function(selected)
+    selectedSeeds = selected
 end)
 
-local autoBuy = false
-mainSection:AddToggle("Auto Buy Selected", false, function(state)
-    autoBuy = state
-    if autoBuy then
+local autoBuySeedsToggle = false
+autoBuySeedsSection:AddToggle("Auto Buy Selected Seeds", false, function(state)
+    autoBuySeedsToggle = state
+    if state then
         task.spawn(function()
-            while autoBuy do
-                for _, fruit in ipairs(selectedFruits) do
-                    BuySeedStock:FireServer(fruit)
+            while autoBuySeedsToggle do
+                for _, seedName in ipairs(selectedSeeds) do
+                    BuySeedStock:FireServer(seedName)
                     task.wait(0.1)
                 end
-                task.wait(0.1)
+                task.wait(1)
             end
         end)
     end
 end)
 
--- GUI TOGGLES
-local guiSection = MainTab:CreateSector("GUI", "left")
+-- Auto Buy Gear Section
+local autoBuyGearSection = MainTab:CreateSector("Auto Buy Gear", "left")
+local selectedGears = {}
 
-guiSection:AddToggle("Shop", false, function(state)
-    LocalPlayer.PlayerGui.Seed_Shop.Enabled = state
+autoBuyGearSection:AddDropdown("Select Gear", gearList, nil, true, function(selected)
+    selectedGears = selected
 end)
 
-guiSection:AddToggle("Gear Shop", false, function(state)
-    LocalPlayer.PlayerGui.Gear_Shop.Enabled = state
+local autoBuyGearToggle = false
+autoBuyGearSection:AddToggle("Auto Buy Selected Gear", false, function(state)
+    autoBuyGearToggle = state
+    if state then
+        task.spawn(function()
+            while autoBuyGearToggle do
+                for _, gearName in ipairs(selectedGears) do
+                    BuyGearStock:FireServer(gearName)
+                    task.wait(0.1)
+                end
+                task.wait(1)
+            end
+        end)
+    end
 end)
 
-guiSection:AddToggle("Cosmetic Shop", false, function(state)
-    LocalPlayer.PlayerGui.CosmeticShop_UI.Enabled = state
-end)
+-- Sell & Collect Section
+local sellCollectSection = MainTab:CreateSector("Sell & Collect", "right")
 
--- SELL & COLLECT SECTION
-local sellSection = MainTab:CreateSector("Sell & Collect", "right")
-
-sellSection:AddButton("Sell All", function()
+sellCollectSection:AddButton("Sell All", function()
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local hrp = char:WaitForChild("HumanoidRootPart")
     local originalCFrame = hrp.CFrame
@@ -80,14 +103,12 @@ sellSection:AddButton("Sell All", function()
     hrp.CFrame = originalCFrame
 end)
 
-sellSection:AddButton("Collect All", function()
+sellCollectSection:AddButton("Collect All", function()
     local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
     local hrp = char:WaitForChild("HumanoidRootPart")
-
     local originalCFrame = hrp.CFrame
     local originPos = hrp.Position
-
-    local maxRange = 80 -- max distance to consider
+    local maxRange = 80
 
     for _, prompt in ipairs(workspace:GetDescendants()) do
         if prompt:IsA("ProximityPrompt") and prompt.Enabled then
@@ -96,53 +117,46 @@ sellSection:AddButton("Collect All", function()
             if promptPart and promptPart:IsA("BasePart") then
                 local dist = (promptPart.Position - originPos).Magnitude
                 if dist <= maxRange then
-                    -- Teleport to prompt location
-                    hrp.CFrame = promptPart.CFrame + Vector3.new(0, 3, 0) -- small offset above
-
-                    task.wait(0.05) -- wait a moment to simulate being in range
-
-                    -- Fire the prompt
+                    hrp.CFrame = promptPart.CFrame + Vector3.new(0, 3, 0)
+                    task.wait(0.05)
                     fireproximityprompt(prompt)
-
-                    task.wait(0.05) -- small wait before next
+                    task.wait(0.05)
                 end
             end
         end
     end
-
-    -- Return to original position
     hrp.CFrame = originalCFrame
 end)
 
-
--- HONEY EVENT SECTION
-local honeySection = MainTab:CreateSector("Honey Event", "left")
-
-local tradePollinated = false
-honeySection:AddToggle("Trade All Pollinated Fruit", false, function(state)
-    tradePollinated = state
-    if tradePollinated then
-        local backpack = LocalPlayer:WaitForChild("Backpack")
-        for _, item in ipairs(backpack:GetChildren()) do
-            if item:IsA("Tool") and item.Name:lower():find("pollinate") then
-                LocalPlayer.Character.Humanoid:EquipTool(item)
-                task.wait(0.3)
-                HoneyMachineService_RE:FireServer("MachineInteract")
-                task.wait(0.2)
+-- Honey Event Section
+local honeyEventSection = MainTab:CreateSector("Honey Event", "left")
+local tradePollinatedToggle = false
+honeyEventSection:AddToggle("Trade All Pollinated Fruit", false, function(state)
+    tradePollinatedToggle = state
+    if state then
+        task.spawn(function()
+            local backpack = LocalPlayer:WaitForChild("Backpack")
+            for _, item in ipairs(backpack:GetChildren()) do
+                if item:IsA("Tool") and item.Name:lower():find("pollinate") then
+                    LocalPlayer.Character.Humanoid:EquipTool(item)
+                    task.wait(0.3)
+                    HoneyMachineService_RE:FireServer("MachineInteract")
+                    task.wait(0.2)
+                end
             end
-        end
+        end)
     end
 end)
 
--- FAKE STATS SECTION
-local statsSection = MainTab:CreateSector("Fake Stats", "right")
+-- Fake Stats Section
+local fakeStatsSection = MainTab:CreateSector("Fake Stats", "right")
 
 local sheckleInput = ""
-statsSection:AddTextbox("Set Sheckle", nil, function(text)
+fakeStatsSection:AddTextbox("Set Sheckle", nil, function(text)
     sheckleInput = text
 end)
 
-statsSection:AddButton("Set Sheckle", function()
+fakeStatsSection:AddButton("Set Sheckle", function()
     local label = LocalPlayer.PlayerGui.Sheckles_UI.TextLabel
     if tonumber(sheckleInput) then
         label.Text = string.format("%s¢", tostring(sheckleInput):reverse():gsub("%d%d%d", "%1,"):reverse():gsub("^,", ""))
@@ -152,62 +166,277 @@ statsSection:AddButton("Set Sheckle", function()
 end)
 
 local notifInput = ""
-statsSection:AddTextbox("Fake Notification", nil, function(text)
+fakeStatsSection:AddTextbox("Fake Notification", nil, function(text)
     notifInput = text
 end)
 
-statsSection:AddButton("Send Fake Notification", function()
+fakeStatsSection:AddButton("Send Fake Notification", function()
     firesignal(Notification.OnClientEvent, notifInput)
 end)
 
--- AUTO BUY EGG SECTION
-local eggList = {
-    "Bug Egg",
-    "Mythic Egg",
-    "Legendary Egg"
-}
-
-local autoEggSection = MainTab:CreateSector("Auto Buy Egg", "left")
+-- Auto Buy Egg Section
+local autoBuyEggSection = MainTab:CreateSector("Auto Buy Egg", "left")
 local selectedEggs = {}
 
-autoEggSection:AddDropdown("Select Eggs", eggList, nil, true, function(selected)
+autoBuyEggSection:AddDropdown("Select Eggs", eggList, nil, true, function(selected)
     selectedEggs = selected
 end)
 
-local autoBuyEgg = false
-autoEggSection:AddToggle("Auto Buy Selected Eggs", false, function(state)
-    autoBuyEgg = state
-    if autoBuyEgg then
+local autoBuyEggToggle = false
+autoBuyEggSection:AddToggle("Auto Buy Selected Eggs", false, function(state)
+    autoBuyEggToggle = state
+    if state then
         task.spawn(function()
-            local eggLocationsFolder = workspace.NPCS and workspace.NPCS:FindFirstChild("Pet Stand") and workspace.NPCS["Pet Stand"]:FindFirstChild("EggLocations")
+            while autoBuyEggToggle do
+                local eggLocationsFolder = workspace.NPCS and workspace.NPCS:FindFirstChild("Pet Stand") and workspace.NPCS["Pet Stand"]:FindFirstChild("EggLocations")
+                if not eggLocationsFolder then
+                    warn("EggLocations folder not found!")
+                    break
+                end
 
-            if not eggLocationsFolder then
-                warn("EggLocations folder not found!")
-                return
-            end
-
-            -- Map selected egg names to their indices
-            local eggIndices = {}
-            for _, selectedEgg in ipairs(selectedEggs) do
-                for index, eggName in ipairs(eggList) do
-                    if eggName == selectedEgg then
-                        table.insert(eggIndices, index)
-                        break
+                -- Map selected egg names to their indices
+                local eggIndices = {}
+                for _, selectedEgg in ipairs(selectedEggs) do
+                    for index, eggName in ipairs(eggList) do
+                        if eggName == selectedEgg then
+                            table.insert(eggIndices, index)
+                            break
+                        end
                     end
                 end
-            end
 
-            for _, eggIndex in ipairs(eggIndices) do
-                -- Check if egg model exists in EggLocations folder
-                local eggModelName = eggList[eggIndex]
-                if eggLocationsFolder:FindFirstChild(eggModelName) then
-                    BuyPetEgg:FireServer(eggIndex)
-                    task.wait(0.5)  -- small delay between fires
+                for _, eggIndex in ipairs(eggIndices) do
+                    local eggModelName = eggList[eggIndex]
+                    if eggLocationsFolder:FindFirstChild(eggModelName) then
+                        BuyPetEgg:FireServer(eggIndex)
+                        task.wait(0.5)
+                    end
                 end
+                task.wait(3)
             end
         end)
     end
 end)
 
--- Default Notification on load
-firesignal(Notification.OnClientEvent, "Thanks for using Onyx Hub!")
+-- Auto Farm Tab Setup
+
+-- Start Auto Farm Section (left)
+local startAutoFarmSection = AutoFarmTab:CreateSector("Start Auto Farm", "left")
+local autoFarmToggle = false
+
+startAutoFarmSection:AddToggle("Enable Auto Farm", false, function(state)
+    autoFarmToggle = state
+    if state then
+        task.spawn(function()
+            -- Loop forever until toggled off
+            while autoFarmToggle do
+                -- 1. Buy all seeds selected in Main tab from most expensive to least expensive
+                local seedsToBuy = {}
+                for i = #fruitList, 1, -1 do
+                    local seed = fruitList[i]
+                    seedsToBuy[#seedsToBuy + 1] = seed
+                end
+                for _, seedName in ipairs(seedsToBuy) do
+                    BuySeedStock:FireServer(seedName)
+                    task.wait(0.1)
+                end
+
+                -- 2. Auto plant seeds until no seeds left in backpack (any tool with name containing 'Seed')
+                local backpack = LocalPlayer:WaitForChild("Backpack")
+                local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                local hrp = char:WaitForChild("HumanoidRootPart")
+
+                local function findNearestCanPlant()
+                    local nearestPart = nil
+                    local shortestDist = math.huge
+                    for _, part in ipairs(workspace:GetDescendants()) do
+                        if part:IsA("BasePart") and part.Name == "can_plant" then
+                            local dist = (part.Position - hrp.Position).Magnitude
+                            if dist < shortestDist then
+                                shortestDist = dist
+                                nearestPart = part
+                            end
+                        end
+                    end
+                    return nearestPart
+                end
+
+                while true do
+                    -- Find any seed tool in backpack
+                    local seedTool = nil
+                    for _, tool in ipairs(backpack:GetChildren()) do
+                        if tool:IsA("Tool") and tool.Name:find("Seed") then
+                            seedTool = tool
+                            break
+                        end
+                    end
+                    if not seedTool then break end -- no seeds left
+
+                    -- Equip seed tool
+                    LocalPlayer.Character.Humanoid:EquipTool(seedTool)
+                    task.wait(0.2)
+
+                    -- Find nearest can_plant part
+                    local plantPosPart = findNearestCanPlant()
+                    if not plantPosPart then break end -- no plant spots found
+
+                    -- Fire plant event at that position with seed name trimmed ("Carrot Seed" -> "Carrot")
+                    local seedName = seedTool.Name:gsub(" Seed", "")
+                    Plant_RE:FireServer(plantPosPart.Position + Vector3.new(0, 1, 0), seedName)
+
+                    task.wait(0.3)
+                end
+
+                -- 3. Wait 5 minutes
+                task.wait(300)
+
+                -- 4. Collect all 3 times
+                for i = 1, 3 do
+                    local originalCFrame = hrp.CFrame
+                    local originPos = hrp.Position
+                    local maxRange = 80
+                    for _, prompt in ipairs(workspace:GetDescendants()) do
+                        if prompt:IsA("ProximityPrompt") and prompt.Enabled then
+                            local promptPart = prompt.Parent:IsA("Model") and prompt.Parent:FindFirstChild("HumanoidRootPart") or prompt.Parent
+                            if promptPart and promptPart:IsA("BasePart") then
+                                local dist = (promptPart.Position - originPos).Magnitude
+                                if dist <= maxRange then
+                                    hrp.CFrame = promptPart.CFrame + Vector3.new(0, 3, 0)
+                                    task.wait(0.05)
+                                    fireproximityprompt(prompt)
+                                    task.wait(0.05)
+                                end
+                            end
+                        end
+                    end
+                    hrp.CFrame = originalCFrame
+                end
+
+                -- 5. If honey event enabled, do honey event 5 times with 30s wait
+                if tradePollinatedToggle then
+                    local backpack = LocalPlayer:WaitForChild("Backpack")
+                    local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+                    local hrp = char:WaitForChild("HumanoidRootPart")
+
+                    for i = 1, 5 do
+                        for _, item in ipairs(backpack:GetChildren()) do
+                            if item:IsA("Tool") and item.Name:lower():find("pollinate") then
+                                LocalPlayer.Character.Humanoid:EquipTool(item)
+                                task.wait(0.3)
+                                HoneyMachineService_RE:FireServer("MachineInteract")
+                                task.wait(30)
+                            end
+                        end
+                    end
+                end
+
+                -- 6. Sell all
+                local originalCFrame = hrp.CFrame
+                local sellCFrame = CFrame.new(64.9806061, 2.99999881, 1.34618723)
+
+                hrp.CFrame = sellCFrame
+                task.wait(0.3)
+                Sell_Inventory:FireServer()
+                task.wait(0.3)
+                hrp.CFrame = originalCFrame
+
+                -- 7. Repeat loop
+            end
+        end)
+    end
+end)
+
+-- Auto Farm Settings Section (right)
+local autoFarmSettingsSection = AutoFarmTab:CreateSector("Auto Farm Settings", "right")
+
+local autoSnipeSeedSelected = {}
+autoFarmSettingsSection:AddDropdown("Auto Snipe Seed", fruitList, nil, true, function(selected)
+    autoSnipeSeedSelected = selected
+end)
+
+local autoSnipeSeedToggle = false
+autoFarmSettingsSection:AddToggle("Enable Auto Snipe Seed", false, function(state)
+    autoSnipeSeedToggle = state
+    if state then
+        task.spawn(function()
+            while autoSnipeSeedToggle do
+                for _, seedName in ipairs(autoSnipeSeedSelected) do
+                    BuySeedStock:FireServer(seedName)
+                    task.wait(0.1)
+                end
+                task.wait(1)
+            end
+        end)
+    end
+end)
+
+local autoSnipeEggSelected = {}
+autoFarmSettingsSection:AddDropdown("Auto Snipe Egg", eggList, nil, true, function(selected)
+    autoSnipeEggSelected = selected
+end)
+
+local autoSnipeEggToggle = false
+autoFarmSettingsSection:AddToggle("Enable Auto Snipe Egg", false, function(state)
+    autoSnipeEggToggle = state
+    if state then
+        task.spawn(function()
+            while autoSnipeEggToggle do
+                local eggLocationsFolder = workspace.NPCS and workspace.NPCS:FindFirstChild("Pet Stand") and workspace.NPCS["Pet Stand"]:FindFirstChild("EggLocations")
+                if not eggLocationsFolder then
+                    warn("EggLocations folder not found!")
+                    break
+                end
+                for _, eggName in ipairs(autoSnipeEggSelected) do
+                    for index, eggListName in ipairs(eggList) do
+                        if eggListName == eggName and eggLocationsFolder:FindFirstChild(eggName) then
+                            BuyPetEgg:FireServer(index)
+                            task.wait(0.5)
+                        end
+                    end
+                end
+                task.wait(3)
+            end
+        end)
+    end
+end)
+
+local autoDoHoneyEventToggle = false
+autoFarmSettingsSection:AddToggle("Auto Do Honey Event", false, function(state)
+    autoDoHoneyEventToggle = state
+    -- This toggle is checked in the auto farm loop
+end)
+
+local autoSnipeGearSelected = {}
+autoFarmSettingsSection:AddDropdown("Auto Snipe Gear", gearList, nil, true, function(selected)
+    autoSnipeGearSelected = selected
+end)
+
+local autoSnipeGearToggle = false
+autoFarmSettingsSection:AddToggle("Enable Auto Snipe Gear", false, function(state)
+    autoSnipeGearToggle = state
+    if state then
+        task.spawn(function()
+            while autoSnipeGearToggle do
+                for _, gearName in ipairs(autoSnipeGearSelected) do
+                    BuyGearStock:FireServer(gearName)
+                    task.wait(0.1)
+                end
+                task.wait(1)
+            end
+        end)
+    end
+end)
+
+-- Settings for wait times and repeat times
+local waitTime = 300
+local honeyRepeatTimes = 5
+
+autoFarmSettingsSection:AddSlider("Wait Time (seconds)", 30, 600, 300, 10, function(value)
+    waitTime = value
+end)
+
+autoFarmSettingsSection:AddSlider("Honey Event Repeat Times", 1, 10, 5, 1, function(value)
+    honeyRepeatTimes = value
+end)
+
+return
